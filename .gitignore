@@ -1,0 +1,36 @@
+# Yii2
+/vendor/
+/runtime/
+/web/assets/*
+!/web/assets/.gitkeep
+/web/uploads/*
+!/web/uploads/.gitkeep
+тестовое задание.md
+
+# Composer
+composer.phar
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Docker volumes
+docker/mysql/data/
+
+

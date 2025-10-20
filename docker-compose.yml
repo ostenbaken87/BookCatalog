@@ -1,0 +1,55 @@
+services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: bookcatalog_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php
+    networks:
+      - bookcatalog-network
+
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: bookcatalog_php
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=bookcatalog
+      - DB_USER=root
+      - DB_PASSWORD=root
+    depends_on:
+      - mysql
+    networks:
+      - bookcatalog-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: bookcatalog_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bookcatalog
+      MYSQL_USER: bookcatalog
+      MYSQL_PASSWORD: bookcatalog
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bookcatalog-network
+
+networks:
+  bookcatalog-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+

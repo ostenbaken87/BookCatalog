@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+vendor/
+runtime/
+web/assets/
+node_modules/
+*.md
+docker-compose.yml
+
