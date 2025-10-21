@@ -7,6 +7,11 @@ $config = [
     'id' => 'basic',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
+    'language' => 'ru-RU',
+    'name' => 'Каталог книг',
+    'on beforeRequest' => function () {
+        \app\components\BookEventHandler::register();
+    },
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
@@ -42,14 +47,25 @@ $config = [
             ],
         ],
         'db' => $db,
-        /*
+        'authManager' => [
+            'class' => 'yii\rbac\DbManager',
+        ],
+        'smsPilot' => [
+            'class' => 'app\components\SmsPilot',
+            'apiKey' => $params['smsPilotApiKey'],
+        ],
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
+                '' => 'book/index',
+                'books' => 'book/index',
+                'books/<id:\d+>' => 'book/view',
+                'authors' => 'author/index',
+                'authors/<id:\d+>' => 'author/view',
+                'report/top-authors' => 'report/top-authors',
             ],
         ],
-        */
     ],
     'params' => $params,
 ];

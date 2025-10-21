@@ -1,4 +1,11 @@
+# Apache configuration for Yii2
+# Not used in Docker (we use NGINX), but useful for other deployments
+
 RewriteEngine on
-RewriteCond %{REQUEST_FILENAME} !-d
+
+# if a directory or a file exists, use it directly
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule . index.php [L]
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# otherwise forward it to index.php
+RewriteRule . index.php

@@ -6,6 +6,7 @@
 /web/uploads/*
 !/web/uploads/.gitkeep
 тестовое задание.md
+todo.md
 
 # Composer
 composer.phar
