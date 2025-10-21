@@ -1,10 +1,7 @@
 # Yii2
 /vendor/
 /runtime/
-/web/assets/*
-!/web/assets/.gitkeep
-/web/uploads/*
-!/web/uploads/.gitkeep
+
 тестовое задание.md
 todo.md
 
