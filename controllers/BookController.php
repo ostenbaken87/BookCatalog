@@ -49,9 +49,9 @@ class BookController extends Controller
     public function actionIndex()
     {
         $dataProvider = new ActiveDataProvider([
-            'query' => Book::find()->orderBy(['created_at' => SORT_DESC]),
+            'query' => Book::find()->with('authors')->orderBy(['created_at' => SORT_DESC]),
             'pagination' => [
-                'pageSize' => 20,
+                'pageSize' => Yii::$app->params['pagination']['booksPageSize'],
             ],
         ]);
 
@@ -94,7 +94,7 @@ class BookController extends Controller
 
         return $this->render('create', [
             'model' => $model,
-            'authors' => Author::find()->orderBy(['full_name' => SORT_ASC])->all(),
+            'authors' => $this->getAuthorsList(),
         ]);
     }
 
@@ -120,7 +120,7 @@ class BookController extends Controller
 
         return $this->render('update', [
             'model' => $model,
-            'authors' => Author::find()->orderBy(['full_name' => SORT_ASC])->all(),
+            'authors' => $this->getAuthorsList(),
         ]);
     }
 
@@ -131,8 +131,16 @@ class BookController extends Controller
      */
     public function actionDelete($id)
     {
-        $this->findModel($id)->delete();
-        Yii::$app->session->setFlash('success', 'Книга успешно удалена.');
+        $model = $this->findModel($id);
+        $bookTitle = $model->title;
+        
+        if ($model->delete()) {
+            Yii::info("Book deleted: ID={$id}, Title=\"{$bookTitle}\"", __METHOD__);
+            Yii::$app->session->setFlash('success', 'Книга успешно удалена.');
+        } else {
+            Yii::error("Failed to delete book: ID={$id}, Title=\"{$bookTitle}\"", __METHOD__);
+            Yii::$app->session->setFlash('error', 'Ошибка при удалении книги.');
+        }
 
         return $this->redirect(['index']);
     }
@@ -149,6 +157,16 @@ class BookController extends Controller
         }
 
         throw new NotFoundHttpException('Запрашиваемая страница не найдена.');
+    }
+
+    /**
+     * Get list of all authors sorted by name
+     * 
+     * @return Author[] array of authors
+     */
+    protected function getAuthorsList()
+    {
+        return Author::find()->orderBy(['full_name' => SORT_ASC])->all();
     }
 }
 

@@ -44,8 +44,12 @@ class Author extends ActiveRecord
     {
         return [
             [['full_name'], 'required'],
-            [['full_name'], 'string', 'max' => 255],
+            [['full_name'], 'string', 'min' => 2, 'max' => 255],
             [['full_name'], 'trim'],
+            [['full_name'], 'match', 
+                'pattern' => '/^[а-яёА-ЯЁa-zA-Z\s\-\.\']+$/u',
+                'message' => 'ФИО может содержать только буквы, пробелы, дефисы, точки и апострофы.'
+            ],
         ];
     }
 
@@ -82,8 +86,10 @@ class Author extends ActiveRecord
     }
 
     /**
-     * @param integer $year
-     * @return integer
+     * Get count of books published by this author in specific year
+     * 
+     * @param integer $year the publication year
+     * @return integer number of books
      */
     public function getBooksCountByYear($year)
     {
@@ -93,7 +99,9 @@ class Author extends ActiveRecord
     }
 
     /**
-     * @return integer
+     * Get total count of books by this author
+     * 
+     * @return integer total number of books
      */
     public function getBooksCount()
     {
@@ -106,10 +114,23 @@ class Author extends ActiveRecord
     public function beforeDelete()
     {
         if (parent::beforeDelete()) {
-            Yii::$app->db->createCommand()
-                ->delete('{{%book_author}}', ['author_id' => $this->id])
-                ->execute();
-            return true;
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Удаляем связи с книгами
+                Yii::$app->db->createCommand()
+                    ->delete('{{%book_author}}', ['author_id' => $this->id])
+                    ->execute();
+                
+                // Удаляем подписки на этого автора
+                Subscription::deleteAll(['author_id' => $this->id]);
+                
+                $transaction->commit();
+                return true;
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::error('Error deleting author dependencies: ' . $e->getMessage());
+                return false;
+            }
         }
         return false;
     }

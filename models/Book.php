@@ -98,7 +98,9 @@ class Book extends ActiveRecord
     }
 
     /**
-     * @return string
+     * Get comma-separated list of author names
+     * 
+     * @return string authors names separated by comma
      */
     public function getAuthorsNames()
     {
@@ -108,24 +110,44 @@ class Book extends ActiveRecord
     }
 
     /**
-     * @return bool
+     * Delete image file from filesystem
+     * 
+     * @param string|null $imagePath relative path to image
+     * @return bool whether the file was deleted
+     */
+    protected function deleteImageFile($imagePath = null)
+    {
+        if ($imagePath === null) {
+            $imagePath = $this->cover_image;
+        }
+        
+        if ($imagePath) {
+            $file = Yii::getAlias('@webroot') . $imagePath;
+            if (file_exists($file) && is_writable($file)) {
+                return unlink($file);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Upload and process book cover image
+     * 
+     * @return bool whether the upload was successful
      */
     public function upload()
     {
         if ($this->validate()) {
             if ($this->imageFile) {
-                $uploadPath = Yii::getAlias('@webroot/uploads/books');
+                $uploadDir = Yii::$app->params['uploadPaths']['books'];
+                $uploadPath = Yii::getAlias('@webroot') . $uploadDir;
+                
                 if (!is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0777, true);
+                    mkdir($uploadPath, 0755, true);
                 }
 
                 // Удаляем старое изображение
-                if ($this->cover_image) {
-                    $oldFile = Yii::getAlias('@webroot') . $this->cover_image;
-                    if (file_exists($oldFile)) {
-                        unlink($oldFile);
-                    }
-                }
+                $this->deleteImageFile();
 
                 $fileName = uniqid() . '.' . $this->imageFile->extension;
                 $filePath = $uploadPath . '/' . $fileName;
@@ -139,7 +161,7 @@ class Book extends ActiveRecord
                         Yii::error("Failed to resize image: " . $e->getMessage());
                     }
                     
-                    $this->cover_image = '/uploads/books/' . $fileName;
+                    $this->cover_image = $uploadDir . '/' . $fileName;
                     return true;
                 }
             }
@@ -149,7 +171,58 @@ class Book extends ActiveRecord
     }
 
     /**
-     * @return bool
+     * Handle image upload for the book
+     * 
+     * @return bool whether the upload was successful
+     */
+    protected function handleImageUpload()
+    {
+        $oldCoverImage = $this->getOldAttribute('cover_image');
+        
+        if ($this->imageFile) {
+            if (!$this->upload()) {
+                $this->addError('imageFile', 'Не удалось загрузить изображение.');
+                return false;
+            }
+        } else {
+            // Preserve old image if no new image uploaded
+            $this->cover_image = $oldCoverImage;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Sync book authors relationships
+     * 
+     * @return bool whether the sync was successful
+     */
+    protected function syncAuthors()
+    {
+        // Remove old author relationships
+        BookAuthor::deleteAll(['book_id' => $this->id]);
+
+        // Create new author relationships
+        if (!empty($this->authorIds)) {
+            foreach ($this->authorIds as $authorId) {
+                $bookAuthor = new BookAuthor();
+                $bookAuthor->book_id = $this->id;
+                $bookAuthor->author_id = $authorId;
+                
+                if (!$bookAuthor->save()) {
+                    $this->addError('authorIds', 'Не удалось связать книгу с автором ID: ' . $authorId);
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Save book with authors relationships
+     * 
+     * @return bool whether the save was successful
      */
     public function saveWithAuthors()
     {
@@ -157,40 +230,28 @@ class Book extends ActiveRecord
         try {
             $isNewRecord = $this->isNewRecord;
 
-            $oldCoverImage = $this->getOldAttribute('cover_image');
-            
-            if ($this->imageFile) {
-                if (!$this->upload()) {
-                    $transaction->rollBack();
-                    return false;
-                }
-
-            } else {
-
-                $this->cover_image = $oldCoverImage;
-            }
-
-            if (!$this->save(false)) {
+            // Handle image upload
+            if (!$this->handleImageUpload()) {
                 $transaction->rollBack();
                 return false;
             }
 
-            BookAuthor::deleteAll(['book_id' => $this->id]);
+            // Save book data
+            if (!$this->save(false)) {
+                $this->addError('title', 'Не удалось сохранить данные книги.');
+                $transaction->rollBack();
+                return false;
+            }
 
-            if (!empty($this->authorIds)) {
-                foreach ($this->authorIds as $authorId) {
-                    $bookAuthor = new BookAuthor();
-                    $bookAuthor->book_id = $this->id;
-                    $bookAuthor->author_id = $authorId;
-                    if (!$bookAuthor->save()) {
-                        $transaction->rollBack();
-                        return false;
-                    }
-                }
+            // Sync author relationships
+            if (!$this->syncAuthors()) {
+                $transaction->rollBack();
+                return false;
             }
 
             $transaction->commit();
             
+            // Trigger event for new books
             if ($isNewRecord) {
                 $this->trigger(self::EVENT_AFTER_INSERT_BOOK);
             }
@@ -198,7 +259,8 @@ class Book extends ActiveRecord
             return true;
         } catch (\Exception $e) {
             $transaction->rollBack();
-            Yii::error($e->getMessage());
+            Yii::error('Error saving book with authors: ' . $e->getMessage());
+            $this->addError('title', 'Произошла ошибка при сохранении: ' . $e->getMessage());
             return false;
         }
     }
@@ -220,14 +282,10 @@ class Book extends ActiveRecord
     public function beforeDelete()
     {
         if (parent::beforeDelete()) {
+            // Удаляем изображение обложки
+            $this->deleteImageFile();
 
-            if ($this->cover_image) {
-                $file = Yii::getAlias('@webroot') . $this->cover_image;
-                if (file_exists($file)) {
-                    unlink($file);
-                }
-            }
-
+            // Удаляем связи с авторами
             BookAuthor::deleteAll(['book_id' => $this->id]);
             
             return true;
@@ -236,7 +294,9 @@ class Book extends ActiveRecord
     }
 
     /**
-     * @return string
+     * Get URL of book cover image or default placeholder
+     * 
+     * @return string full URL to cover image
      */
     public function getCoverImageUrl()
     {

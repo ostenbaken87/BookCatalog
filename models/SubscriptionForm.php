@@ -47,6 +47,10 @@ class SubscriptionForm extends Model
     }
 
     /**
+     * Validator to check if subscription already exists
+     * 
+     * @param string $attribute the attribute currently being validated
+     * @param array $params the additional name-value pairs
      */
     public function checkSubscription($attribute, $params)
     {
@@ -56,7 +60,9 @@ class SubscriptionForm extends Model
     }
 
     /**
-     * @return Subscription|null
+     * Create new subscription
+     * 
+     * @return Subscription|null the subscription model or null if failed
      */
     public function subscribe()
     {
@@ -76,9 +82,11 @@ class SubscriptionForm extends Model
         }
 
         if ($subscription->save()) {
+            Yii::info("New subscription created: Author ID={$this->author_id}, Phone={$this->phone}", __METHOD__);
             return $subscription;
         }
 
+        Yii::error("Failed to create subscription: Author ID={$this->author_id}, Phone={$this->phone}", __METHOD__);
         return null;
     }
 }

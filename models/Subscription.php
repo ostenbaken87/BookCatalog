@@ -86,9 +86,11 @@ class Subscription extends ActiveRecord
     }
 
     /**
-     * @param integer $authorId
-     * @param string $phone
-     * @return bool
+     * Check if phone is already subscribed to author
+     * 
+     * @param integer $authorId the author ID
+     * @param string $phone the phone number
+     * @return bool whether subscription exists
      */
     public static function isSubscribed($authorId, $phone)
     {
@@ -98,8 +100,10 @@ class Subscription extends ActiveRecord
     }
 
     /**
-     * @param integer $authorId
-     * @return array
+     * Get all active subscriptions for specific author
+     * 
+     * @param integer $authorId the author ID
+     * @return Subscription[] array of subscription models
      */
     public static function getActiveSubscriptionsByAuthor($authorId)
     {

@@ -54,7 +54,7 @@ class AuthorController extends Controller
         $dataProvider = new ActiveDataProvider([
             'query' => Author::find()->orderBy(['full_name' => SORT_ASC]),
             'pagination' => [
-                'pageSize' => 20,
+                'pageSize' => Yii::$app->params['pagination']['authorsPageSize'],
             ],
         ]);
 
@@ -84,7 +84,7 @@ class AuthorController extends Controller
         $booksDataProvider = new ActiveDataProvider([
             'query' => $model->getBooks(),
             'pagination' => [
-                'pageSize' => 10,
+                'pageSize' => Yii::$app->params['pagination']['authorBooksPageSize'],
             ],
         ]);
 
@@ -144,8 +144,16 @@ class AuthorController extends Controller
      */
     public function actionDelete($id)
     {
-        $this->findModel($id)->delete();
-        Yii::$app->session->setFlash('success', 'Автор успешно удален.');
+        $model = $this->findModel($id);
+        $authorName = $model->full_name;
+        
+        if ($model->delete()) {
+            Yii::info("Author deleted: ID={$id}, Name=\"{$authorName}\"", __METHOD__);
+            Yii::$app->session->setFlash('success', 'Автор успешно удален.');
+        } else {
+            Yii::error("Failed to delete author: ID={$id}, Name=\"{$authorName}\"", __METHOD__);
+            Yii::$app->session->setFlash('error', 'Ошибка при удалении автора.');
+        }
 
         return $this->redirect(['index']);
     }
